@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+CONFIG_FILE="$HOME/.config/bspwm/src/config/system.ini"
+SFILE="$HOME/.config/bspwm/src/.sys"
+
+[[ -f "$SFILE" ]] && exit 0 # The file exists, exit without doing anything
+
+setup_system_vars() {
+  # Get primary network interface (default route)
+  local primary_net
+  primary_net=$(awk '/default via/ {print $5; exit}' <(ip -4 route show 2>/dev/null))
+
+  # Get secondary active interface (non-primary physical interface)
+  #local secondary_net
+  #secondary_net=$(ip -o link show up | awk -F': ' '{print $2}' |
+  #grep -vE '^(lo|docker|veth|br-|tun|vir|wg)' |
+  #grep -v "$primary_net" | head -n1)
+
+  # Detect backlight control interface
+  local card
+  card=$(basename /sys/class/backlight/*/ 2>/dev/null | head -n1)
+
+  # Identify power supply components
+  local battery adapter
+  battery=$(find /sys/class/power_supply -maxdepth 1 -type l -name "BAT*" | head -n1 | xargs basename 2>/dev/null)
+  adapter=$(find /sys/class/power_supply -maxdepth 1 -type l \( -name "AC*" -o -name "ADP*" \) | head -n1 | xargs basename 2>/dev/null)
+
+  # Update configuration file
+  sed -i -e "s/^sys_network_interface =.*/sys_network_interface = ${primary_net}/" \
+    -e "s/^sys_graphics_card =.*/sys_graphics_card = ${card}/" \
+    -e "s/^sys_battery =.*/sys_battery = ${battery}/" \
+    -e "s/^sys_adapter =.*/sys_adapter = ${adapter}/" "$CONFIG_FILE"
+  #-e "s/^sys_network_interface2 =.*/sys_network_interface2 = ${secondary_net}/" \
+}
+
+# Main execution
+setup_system_vars
+touch "$SFILE"

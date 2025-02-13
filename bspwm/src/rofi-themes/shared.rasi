@@ -1,0 +1,12 @@
+* {
+    font: "JetBrainsMono NF Bold 9";
+    background: #303030F7;
+    bg-alt: #BA5D9A;
+    background-alt: #303030F5;
+    foreground: #fcdea0;
+    selected: #ace1f3;
+    active: #ace1f3;
+    urgent: #BA5D9A;
+
+    img-background: url("~/.config/bspwm/rices/main/rofi.webp", width);
+}

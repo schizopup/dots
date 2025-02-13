@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+vol_dir="$HOME/.config/bspwm/src/assets"
+notify() {
+  dunstify -u low -h string:x-dunst-stack-tag:cvolum "$@"
+}
+
+# Get volume status
+get_volume() {
+  local status=$(pamixer --get-volume-human)
+  [[ $status == muted ]] && echo "muted" || echo "${status/\%/}"
+}
+
+# Determine icon based on status
+get_icon() {
+  local current_vol=$(get_volume)
+  if [[ $current_vol == muted ]] || ((current_vol == 0)); then
+    icon="$vol_dir/mute.png"
+  else
+    icon="$vol_dir/vol.png"
+  fi
+}
+
+# Show notification
+show_notification() {
+  get_icon
+  local message="Volumen: $(get_volume)"
+  [[ $message == *muted* ]] || message+="%"
+  notify -i "$icon" "$message"
+}
+
+# Adjust volume
+adjust_volume() {
+  pamixer --unmute
+  pamixer --allow-boost --set-limit 150 "$@"
+  show_notification
+}
+
+# Toggle mute
+toggle_mute() {
+  pamixer --toggle-mute
+  get_icon
+  local message=$([[ $(pamixer --get-mute) == true ]] && echo "Muted" || echo "Unmuted")
+  notify -i "$icon" "$message"
+}
+
+# Handle options
+case $1 in
+--get) get_volume ;;
+--inc) adjust_volume -i 5 ;;
+--dec) adjust_volume -d 5 ;;
+--toggle) toggle_mute ;;
+*) echo "$(get_volume)%" ;;
+esac

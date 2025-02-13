@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# Get information from connected monitors
+MONITORS=($(xrandr | awk '$2 == "connected" {print $1}'))
+NUM_MONITORS=${#MONITORS[@]}
+
+# Main case for monitor configuration
+case $NUM_MONITORS in
+1)
+  # Just configure workspaces
+  bspc monitor "$monitor_1" -d 1 2 3 4 5 6
+  ;;
+
+2)
+  monitor_2="${MONITORS[1]}"
+  info_monitor_2=($(get_monitor_info "$monitor_2"))
+  width_monitor_1=$(cut -d'x' -f1 <<<"${info_monitor_1[0]}")
+
+  # Workspaces
+  bspc monitor DVI-D-0 -d 4 7 5 8
+  bspc monitor HDMI-0 -d 3 1 2 6 9 10
+  bspc wm -O "$monitor_1" "$monitor_2"
+  ;;
+
+3)
+  monitor_2="${MONITORS[1]}"
+  monitor_3="${MONITORS[2]}"
+  info_monitor_2=($(get_monitor_info "$monitor_2"))
+  info_monitor_3=($(get_monitor_info "$monitor_3"))
+  width_monitor_1=$(cut -d'x' -f1 <<<"${info_monitor_1[0]}")
+  width_monitor_2=$(cut -d'x' -f1 <<<"${info_monitor_2[0]}")
+
+  # Workspaces
+  bspc monitor "$monitor_1" -d 1 2 3
+  bspc monitor "$monitor_2" -d 4 5 6
+  bspc monitor "$monitor_3" -d 7 8 9
+  bspc wm -O "$monitor_2" "$monitor_1" "$monitor_3"
+
+  # For use with 3 monitors, make sure your primary monitor is physically in the center between the other two.
+  # [Monitor 2] <- [Monitor 1] -> [Monitor 3]
+  ;;
+
+*)
+  echo "Warning: Configuration not supported for more than 3 monitors"
+  ;;
+esac

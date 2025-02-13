@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+
+# Screenshot general options
+timestamp=$(date +%Y-%m-%d-%H%M%S)
+dir="$(xdg-user-dir PICTURES)/ScreenShots"
+filename="$dir/Shot-${timestamp}.png"
+
+# Create dir if not exists
+[ -d "$dir" ] || mkdir -p "$dir"
+
+# Rofi options
+s_full=""
+s_select=""
+s_in3="󰔝"
+s_all="󰍹"
+
+# Function to get current monitor geometry based on mouse position
+get_current_monitor() {
+  local MONITORS=$(xrandr | grep -o '[0-9]*x[0-9]*[+-][0-9]*[+-][0-9]*')
+  local XMOUSE=$(xdotool getmouselocation | awk -F "[: ]" '{print $2}')
+  local YMOUSE=$(xdotool getmouselocation | awk -F "[: ]" '{print $4}')
+
+  for mon in ${MONITORS}; do
+    local MONW=$(echo ${mon} | awk -F "[x+]" '{print $1}')
+    local MONH=$(echo ${mon} | awk -F "[x+]" '{print $2}')
+    local MONX=$(echo ${mon} | awk -F "[x+]" '{print $3}')
+    local MONY=$(echo ${mon} | awk -F "[x+]" '{print $4}')
+
+    if ((${XMOUSE} >= ${MONX})) &&
+      ((${XMOUSE} <= ${MONX} + ${MONW})) &&
+      ((${YMOUSE} >= ${MONY})) &&
+      ((${YMOUSE} <= ${MONY} + ${MONH})); then
+      echo "${MONW}x${MONH}+${MONX}+${MONY}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+rofi_cmd() {
+  rofi -dmenu \
+    -p Screenshot \
+    -mesg "Directory :: $dir" \
+    -markup-rows \
+    -theme "$HOME"/.config/bspwm/src/rofi-themes/Screenshot.rasi
+}
+
+run_rofi() {
+  echo -e "$s_full\n$s_select\n$s_in3\n$s_all" | rofi_cmd
+}
+
+show_notification() {
+  if [[ -e "$filename" ]]; then
+    dunstify --replace=699 -i "$filename" "Screenshot" "Screenshot saved and copied to clipboard"
+  else
+    dunstify --replace=699 -i custom-trash-bin "Screenshot" "Screenshot Canceled"
+  fi
+}
+
+copy_screenshot() {
+  xclip -selection clipboard -t image/png -i "$filename"
+}
+
+take_screenshot() {
+  local mode="$1"
+  local all_monitors="$2"
+  local geometry=""
+  local cmd="maim -u"
+
+  case "$mode" in
+  "full")
+    if [[ "$all_monitors" != "true" ]]; then
+      geometry=$(get_current_monitor)
+      [[ -n "$geometry" ]] && cmd="$cmd -g $geometry"
+    fi
+    ;;
+  "select")
+    cmd="$cmd -s -o -b 2"
+    ;;
+  esac
+
+  $cmd "$filename"
+
+  if [[ $? -eq 0 ]]; then
+    paplay /usr/share/sounds/freedesktop/stereo/screen-capture.oga &>/dev/null
+    copy_screenshot
+    show_notification
+  fi
+}
+
+countdown() {
+  for sec in $(seq "$1" -1 1); do
+    dunstify -t 1000 -i ~/.config/bspwm/src/assets/screenshot.png "Taking shot in : $sec"
+    sleep 1
+  done
+}
+
+run_cmd() {
+  case $1 in
+  --now)
+    sleep 0.5 && take_screenshot "full" false
+    ;;
+  --sel)
+    take_screenshot "select" false
+    ;;
+  --in3)
+    countdown 3 && sleep 1 && take_screenshot "full" false
+    ;;
+  --all)
+    sleep 0.5 && take_screenshot "full" true
+    ;;
+  esac
+}
+
+select_option="$(run_rofi)"
+case ${select_option} in
+"$s_full")
+  run_cmd --now
+  ;;
+"$s_select")
+  run_cmd --sel
+  ;;
+"$s_in3")
+  run_cmd --in3
+  ;;
+"$s_all")
+  run_cmd --all
+  ;;
+esac
